@@ -327,6 +327,9 @@ std::string FileSystem::getCurrentDirectory()
 
 bool FileSystem::setCurrentDirectory(std::string path)
 {
+#ifdef __MINGW32__
+#define _chdir chdir
+#endif
 #ifdef _WIN32
     auto windowsPath = path;
     std::replace(windowsPath.begin(), windowsPath.end(), '/', '\\');

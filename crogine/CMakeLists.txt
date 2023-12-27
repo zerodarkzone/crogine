@@ -145,7 +145,7 @@ if(NOT TARGET crogine)
     target_link_libraries(${PROJECT_NAME} ${SDL2_MIXER_LIBRARY})
   endif()
 
-  if(MSVC)
+  if(MSVC OR MINGW)
     target_link_libraries(${PROJECT_NAME} winmm ws2_32 IPHLPAPI ${DBGHELP_LIBRARIES} shlwapi)
   endif()
 

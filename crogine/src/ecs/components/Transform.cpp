@@ -38,6 +38,12 @@ source distribution.
 
 using namespace cro;
 
+
+constexpr glm::vec3 Transform::X_AXIS;
+constexpr glm::vec3 Transform::Y_AXIS;
+constexpr glm::vec3 Transform::Z_AXIS;
+constexpr glm::quat Transform::QUAT_IDENTITY;
+
 Transform::Transform()
     : m_origin              (0.f, 0.f, 0.f),
     m_position              (0.f, 0.f, 0.f),

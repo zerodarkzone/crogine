@@ -38,6 +38,9 @@ source distribution.
 #include <string>
 #include <algorithm>
 
+#ifdef __MINGW32__
+#include <windows.h>
+#endif
 #ifdef _WIN32
 #include <shellapi.h>
 #else

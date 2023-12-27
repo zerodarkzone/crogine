@@ -83,7 +83,7 @@ namespace
     //accurate than converting to a Time and
     //back as the underlying SDL timer only
     //supports milliseconds
-    constexpr float frameTime = 1.f / 60.f;
+    //constexpr float frameTime = 1.f / 60.f;
     float timeSinceLastUpdate = 0.f;
 
 #include "../detail/DefaultIcon.inl"
@@ -213,9 +213,10 @@ namespace
 }
 
 
-App::App(std::uint32_t styleFlags)
+App::App(std::uint32_t styleFlags, float frameTime)
     : m_windowStyleFlags(styleFlags),
     m_frameClock        (nullptr),
+	m_frameTime         (frameTime),
     m_running           (false),
     m_controllerCount   (0),
     m_drawDebugWindows  (true),
@@ -400,16 +401,16 @@ void App::run()
     {
         timeSinceLastUpdate += frameClock.restart();
 
-        while (timeSinceLastUpdate > frameTime)
+        while (timeSinceLastUpdate > m_frameTime)
         {
-            timeSinceLastUpdate -= frameTime;
+            timeSinceLastUpdate -= m_frameTime;
 
             Console::newFrame();
 
             handleEvents();
             handleMessages();
 
-            simulate(frameTime);
+            simulate(m_frameTime);
         }
 
         doImGui();

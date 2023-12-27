@@ -71,9 +71,11 @@ namespace cro
         friend class Detail::SDLResource;
         /*!
         \param windowStyleFlags Style flags with which to create the default window
+        \param frameTime Used to set the fixed timestep for the simulation
         \see Window
         */
-        explicit App(std::uint32_t windowStyleFlags = 0);
+        explicit App(std::uint32_t windowStyleFlags = 0, float frameTime = 1.f / 60.f);
+
         virtual ~App();
 
         App(const App&) = delete;
@@ -209,6 +211,7 @@ namespace cro
         Window m_window;
         Colour m_clearColour;
         HiResTimer* m_frameClock;
+		float m_frameTime;
         bool m_running;
 
         void handleEvents();

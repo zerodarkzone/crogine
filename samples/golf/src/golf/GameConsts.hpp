@@ -209,20 +209,6 @@ struct SpriteAnimID final
     };
 };
 
-
-struct MixerChannel final
-{
-    enum
-    {
-        Music, Effects, Menu,
-        Voice, Vehicles, Environment,
-        UserMusic,
-
-        Count
-    };
-};
-
-
 //data blocks for uniform buffer
 struct WindData final
 {
@@ -267,6 +253,7 @@ struct ShaderID final
         CloudRing,
         Leaderboard,
         Player,
+        PlayerMasked,
         Hair,
         Course,
         CourseGreen,
@@ -349,7 +336,7 @@ static inline const std::array BallTints =
 
 static inline std::int32_t courseOfTheMonth()
 {
-    return cro::SysTime::now().months() % 12;
+    return 9 + (cro::SysTime::now().months() % 3);
 }
 
 static inline float getWindMultiplier(float ballHeight, float distanceToPin)

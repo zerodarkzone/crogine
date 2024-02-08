@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-Matt Marchant 2021 - 2023
+Matt Marchant 2021 - 2024
 http://trederia.blogspot.com
 
 Super Video Golf - zlib licence.
@@ -38,6 +38,7 @@ source distribution.
 
 #include <crogine/core/String.hpp>
 #include <crogine/ecs/components/Sprite.hpp>
+#include <crogine/gui/Gui.hpp>
 #include <crogine/graphics/Texture.hpp>
 #include <crogine/graphics/RenderTexture.hpp>
 #include <crogine/graphics/ModelDefinition.hpp>
@@ -51,6 +52,12 @@ namespace cro
 {
     class MultiRenderTexture;
 }
+
+struct ChatFonts final
+{
+    ImFont* buttonLarge = nullptr;
+    float buttonHeight = 26.f;
+};
 
 struct ConnectionData final
 {
@@ -73,6 +80,8 @@ static constexpr float MaxFOV = 90.f;
 
 struct SharedStateData final
 {
+    ChatFonts chatFonts;
+
     bool useOSKBuffer = false; //if true output of OSK is buffered here instead of sending codepoints
     cro::String OSKBuffer;
 
@@ -217,6 +226,7 @@ struct SharedStateData final
     bool fastCPU = true;
     std::int32_t enableRumble = 1;
     std::int32_t clubSet = 0;
+    std::int32_t preferredClubSet = 0; //this is what the player chooses, may be overridden by game rules
     bool pressHold = false; //press and hold the action button to select power
 
     std::int32_t baseState = 0; //used to tell which state we're returning to from errors etc

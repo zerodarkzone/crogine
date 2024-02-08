@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-Matt Marchant 2023
+Matt Marchant 2023 - 2024
 http://trederia.blogspot.com
 
 crogine - Zlib license.
@@ -35,11 +35,32 @@ source distribution.
 #include "StackDump.hpp"
 #include "ust.hpp"
 #include <iostream>
+#include <ctime>
 
-void StackDump::dump()
+void StackDump::dump(int type)
 {
 //#ifdef _MSC_VER
-    std::ofstream file("stack_dump.txt");
+    auto t = std::time(nullptr);
+    //auto* tm = std::localtime(&t);
+    auto str = std::to_string(t);
+
+    std::ofstream file("stack_dump_" + str + ".txt");
+    switch (type)
+    {
+    default: break;
+    case StackDump::ABRT:
+        file << "ABORT\n";
+        break;
+    case StackDump::FPE:
+        file << "Floating Point Exception\n";
+        break;
+    case StackDump::ILL:
+        file << "Illegal op\n";
+        break;
+    case StackDump::SEG:
+        file << "Segment Fault\n";
+        break;
+    }
     file << "Call Stack:\n" << ust::generate() << std::endl;
 //#endif
 }

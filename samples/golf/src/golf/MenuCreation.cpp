@@ -738,6 +738,7 @@ void MenuState::createMainMenu(cro::Entity parent, std::uint32_t mouseEnter, std
                     if (activated(evt))
                     {
                         m_sharedData.hosting = true;
+                        m_sharedData.clubSet = m_sharedData.preferredClubSet;
 
                         m_uiScene.getSystem<cro::UISystem>()->setActiveGroup(MenuID::Dummy);
                         menuEntity.getComponent<cro::Callback>().getUserData<MenuData>().targetMenu = MenuID::Avatar;
@@ -756,6 +757,7 @@ void MenuState::createMainMenu(cro::Entity parent, std::uint32_t mouseEnter, std
                     if (activated(evt))
                     {
                         m_sharedData.hosting = false;
+                        m_sharedData.clubSet = m_sharedData.preferredClubSet;
 
                         m_uiScene.getSystem<cro::UISystem>()->setActiveGroup(MenuID::Dummy);
                         menuEntity.getComponent<cro::Callback>().getUserData<MenuData>().targetMenu = MenuID::Avatar;
@@ -1564,54 +1566,54 @@ void MenuState::createBrowserMenu(cro::Entity parent, std::uint32_t mouseEnter, 
 
 
 #ifdef USE_GNS
-    struct ListData final
-    {
-        float refreshTime = 5.f;
-        std::vector<cro::Entity> listItems;
-    };
+    //struct ListData final
+    //{
+    //    float refreshTime = 5.f;
+    //    std::vector<cro::Entity> listItems;
+    //};
 
-    //list of friends currently in a lobby
-    entity = m_uiScene.createEntity();
-    entity.addComponent<cro::Transform>();
-    entity.addComponent<cro::Callback>().active = true;
-    entity.getComponent<cro::Callback>().setUserData<ListData>();
-    entity.getComponent<cro::Callback>().function =
-        [&](cro::Entity e, float dt)
-    {
-        if (m_uiScene.getSystem<cro::UISystem>()->getActiveGroup() == MenuID::Join)
-        {
-            auto& [currTime, listItems] = e.getComponent<cro::Callback>().getUserData<ListData>();
-            currTime -= dt;
-            if (currTime < 0)
-            {
-                for (auto e : listItems)
-                {
-                    m_uiScene.destroyEntity(e);
-                }
-                listItems.clear();
+    ////list of friends currently in a lobby
+    //entity = m_uiScene.createEntity();
+    //entity.addComponent<cro::Transform>();
+    //entity.addComponent<cro::Callback>().active = true;
+    //entity.getComponent<cro::Callback>().setUserData<ListData>();
+    //entity.getComponent<cro::Callback>().function =
+    //    [&](cro::Entity e, float dt)
+    //{
+    //    if (m_uiScene.getSystem<cro::UISystem>()->getActiveGroup() == MenuID::Join)
+    //    {
+    //        auto& [currTime, listItems] = e.getComponent<cro::Callback>().getUserData<ListData>();
+    //        currTime -= dt;
+    //        if (currTime < 0)
+    //        {
+    //            for (auto e : listItems)
+    //            {
+    //                m_uiScene.destroyEntity(e);
+    //            }
+    //            listItems.clear();
 
-                const auto newList = m_matchMaking.getFriendGames();
-                for (const auto& game : newList)
-                {
-                    //TODO create a button ent to join the lobby
-                    //TODO rather than create a background drawable for
-                    //each button use a single repeated texture on the
-                    //parent entity
-                    auto ent = m_uiScene.createEntity();
-                    ent.addComponent<cro::Transform>();
+    //            const auto newList = m_matchMaking.getFriendGames();
+    //            for (const auto& game : newList)
+    //            {
+    //                //TODO create a button ent to join the lobby
+    //                //TODO rather than create a background drawable for
+    //                //each button use a single repeated texture on the
+    //                //parent entity
+    //                auto ent = m_uiScene.createEntity();
+    //                ent.addComponent<cro::Transform>();
 
 
 
-                    listItems.push_back(ent);
-                    e.getComponent<cro::Transform>().addChild(ent.getComponent<cro::Transform>());
-                }
+    //                listItems.push_back(ent);
+    //                e.getComponent<cro::Transform>().addChild(ent.getComponent<cro::Transform>());
+    //            }
 
-                currTime += 5.f;
-            }
-        }
-    };
+    //            currTime += 5.f;
+    //        }
+    //    }
+    //};
 
-    menuTransform.addChild(entity.getComponent<cro::Transform>());
+    //menuTransform.addChild(entity.getComponent<cro::Transform>());
 #endif
 
     updateLobbyList();
@@ -1700,7 +1702,7 @@ void MenuState::createLobbyMenu(cro::Entity parent, std::uint32_t mouseEnter, st
     auto bgEnt = entity;
     auto bgBounds = bounds;
 
-//#ifdef USE_GNS
+#ifdef USE_GNS
     //scrolls info about the selected course
     auto& labelFont = m_sharedData.sharedResources->fonts.get(FontID::Label);
     entity = m_uiScene.createEntity();
@@ -1743,7 +1745,7 @@ void MenuState::createLobbyMenu(cro::Entity parent, std::uint32_t mouseEnter, st
     };
     bgEnt.getComponent<cro::Transform>().addChild(entity.getComponent<cro::Transform>());
     m_lobbyWindowEntities[LobbyEntityID::CourseTicker] = entity;
-//#endif
+#endif
 
     //display the score type
     entity = m_uiScene.createEntity();
@@ -1809,7 +1811,7 @@ void MenuState::createLobbyMenu(cro::Entity parent, std::uint32_t mouseEnter, st
     //clubset selection
     if (Social::getClubLevel())
     {
-        m_sharedData.clubSet %= (Social::getClubLevel() + 1);
+        m_sharedData.preferredClubSet %= (Social::getClubLevel() + 1);
 
         //button icon
         entity = m_uiScene.createEntity();
@@ -1818,7 +1820,7 @@ void MenuState::createLobbyMenu(cro::Entity parent, std::uint32_t mouseEnter, st
         entity.addComponent<UIElement>().absolutePosition = { 306.f, 48.f };
         entity.getComponent<UIElement>().depth = 0.1f;
         entity.addComponent<cro::Sprite>() = spriteSheetV2.getSprite("clubset_button");
-        entity.addComponent<cro::SpriteAnimation>().play(m_sharedData.clubSet);
+        entity.addComponent<cro::SpriteAnimation>().play(m_sharedData.preferredClubSet);
         entity.addComponent<cro::CommandTarget>().ID = CommandID::Menu::UIElement;
         bgEnt.getComponent<cro::Transform>().addChild(entity.getComponent<cro::Transform>());
         auto buttonEnt = entity;
@@ -1849,14 +1851,16 @@ void MenuState::createLobbyMenu(cro::Entity parent, std::uint32_t mouseEnter, st
             {
                 if (activated(evt))
                 {
-                    m_sharedData.clubSet = (m_sharedData.clubSet + 1) % (Social::getClubLevel() + 1);
-                    buttonEnt.getComponent<cro::SpriteAnimation>().play(m_sharedData.clubSet);
+                    m_sharedData.preferredClubSet = (m_sharedData.preferredClubSet + 1) % (Social::getClubLevel() + 1);
+                    buttonEnt.getComponent<cro::SpriteAnimation>().play(m_sharedData.preferredClubSet);
                     m_audioEnts[AudioID::Accept].getComponent<cro::AudioEmitter>().play();
 
                     //make sure the server knows what we request so it can be considered
                     //when choosing a club set limit in MP games
-                    std::uint16_t data = (m_sharedData.clientConnection.connectionID << 8) | std::uint8_t(m_sharedData.clubSet);
+                    std::uint16_t data = (m_sharedData.clientConnection.connectionID << 8) | std::uint8_t(m_sharedData.preferredClubSet);
                     m_sharedData.clientConnection.netClient.sendPacket(PacketID::ClubLevel, data, net::NetFlag::Reliable, ConstVal::NetChannelReliable);
+
+                    m_sharedData.clubSet = m_sharedData.clubLimit ? m_sharedData.clubSet : m_sharedData.preferredClubSet;
                 }
             });
 

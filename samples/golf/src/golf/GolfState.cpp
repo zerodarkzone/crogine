@@ -160,9 +160,9 @@ namespace
 GolfState::GolfState(cro::StateStack& stack, cro::State::Context context, SharedStateData& sd)
     : cro::State            (stack, context),
     m_sharedData            (sd),
-    m_gameScene             (context.appInstance.getMessageBus(), 768/*, cro::INFO_FLAG_SYSTEM_TIME | cro::INFO_FLAG_SYSTEMS_ACTIVE*/),
+    m_gameScene             (context.appInstance.getMessageBus(), 1024/*, cro::INFO_FLAG_SYSTEM_TIME | cro::INFO_FLAG_SYSTEMS_ACTIVE*/),
     m_skyScene              (context.appInstance.getMessageBus(), 512),
-    m_uiScene               (context.appInstance.getMessageBus(), 1024),
+    m_uiScene               (context.appInstance.getMessageBus(), 1536),
     m_trophyScene           (context.appInstance.getMessageBus()),
     m_textChat              (m_uiScene, sd),
     m_inputParser           (sd, &m_gameScene),
@@ -301,7 +301,7 @@ GolfState::GolfState(cro::StateStack& stack, cro::State::Context context, Shared
         Achievements::awardAchievement(AchievementStrings[AchievementID::BetterWithFriends]);
     }
     m_cpuGolfer.setCPUCount(cpuCount, sd);
-
+    
     context.mainWindow.loadResources([this]() {
         addSystems();
         loadAssets();
@@ -690,19 +690,19 @@ bool GolfState::handleEvent(const cro::Event& evt)
             toggleQuitReady();
             break;
         case SDLK_7:
-        case SDLK_KP_7:
+        //case SDLK_KP_7: //don't do this, people use it as keybinds
             m_textChat.quickEmote(TextChat::Applaud);
             break;
         case SDLK_8:
-        case SDLK_KP_8:
+        //case SDLK_KP_8:
             m_textChat.quickEmote(TextChat::Happy);
             break;
         case SDLK_9:
-        case SDLK_KP_9:
+        //case SDLK_KP_9:
             m_textChat.quickEmote(TextChat::Laughing);
             break;
         case SDLK_0:
-        case SDLK_KP_0:
+        //case SDLK_KP_0:
             m_textChat.quickEmote(TextChat::Angry);
             break;
         }
@@ -1048,9 +1048,10 @@ void GolfState::handleMessage(const cro::Message& msg)
 
             //show flight cam if not putting
             cmd.targetFlags = CommandID::UI::MiniGreen;
-            cmd.action = [&](cro::Entity e, float)
+            cmd.action = [&, isCPU](cro::Entity e, float)
                 {
-                    if (m_currentPlayer.terrain != TerrainID::Green)
+                    if (m_currentPlayer.terrain != TerrainID::Green
+                        && (!isCPU || (isCPU && !m_sharedData.fastCPU)))
                     {
                         e.getComponent<cro::Callback>().getUserData<GreenCallbackData>().state = 0;
                         e.getComponent<cro::Callback>().active = true;
@@ -1343,7 +1344,7 @@ void GolfState::handleMessage(const cro::Message& msg)
                     cmd.targetFlags = CommandID::UI::MiniGreen;
                     cmd.action = [&](cro::Entity en, float)
                         {
-                            if (m_currentPlayer.terrain != TerrainID::Green)
+                            //if (m_currentPlayer.terrain != TerrainID::Green)
                             {
                                 en.getComponent<cro::Callback>().getUserData<GreenCallbackData>().state = 1;
                                 en.getComponent<cro::Callback>().active = true;
@@ -3754,6 +3755,7 @@ void GolfState::handleNetEvent(const net::NetEvent& evt)
         break;
         case PacketID::ReadyQuitStatus:
             m_readyQuitFlags = evt.packet.as<std::uint8_t>();
+            m_gameScene.getDirector<GolfSoundDirector>()->playSound(GolfSoundDirector::AudioID::Stone, m_currentPlayer.position);
             break;
         case PacketID::AchievementGet:
             notifyAchievement(evt.packet.as<std::array<std::uint8_t, 2u>>());
@@ -4887,7 +4889,7 @@ void GolfState::setCurrentHole(std::uint16_t holeInfo)
         break;
     }
 
-    const auto title = m_sharedData.tutorial ? cro::String("Tutorial").toUtf8() : courseTitle.toUtf8()/*.substr(0, MaxTitleLen)*/;
+    const auto title = m_sharedData.tutorial ? cro::String("Tutorial").toUtf8() : courseTitle.toUtf8();
     const auto holeNumber = std::to_string(m_currentHole + 1);
     const auto holeTotal = std::to_string(m_holeData.size());
     //well... this is awful.
@@ -5062,7 +5064,7 @@ void GolfState::setCurrentPlayer(const ActivePlayer& player)
     m_uiScene.getSystem<cro::CommandSystem>()->sendCommand(cmd);
 
     auto localPlayer = (player.client == m_sharedData.clientConnection.connectionID);
-    auto isCPU = m_sharedData.localConnectionData.playerData[player.player].isCPU;
+    auto isCPU = m_sharedData.connectionData[player.client].playerData[player.player].isCPU;
 
     m_gameScene.getDirector<GolfSoundDirector>()->setActivePlayer(player.client, player.player, isCPU && m_sharedData.fastCPU);
     m_avatars[player.client][player.player].ballModel.getComponent<cro::Transform>().setScale(glm::vec3(1.f));

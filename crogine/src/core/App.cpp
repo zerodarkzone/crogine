@@ -1,6 +1,6 @@
 /*-----------------------------------------------------------------------
 
-Matt Marchant 2017 - 2023
+Matt Marchant 2017 - 2024
 http://trederia.blogspot.com
 
 crogine - Zlib license.
@@ -30,9 +30,24 @@ source distribution.
 #ifndef __APPLE__
 #include "../detail/StackDump.hpp"
 #include <signal.h>
-void winAbort(int)
+static void winAbort(int)
 {
-    StackDump::dump();
+    StackDump::dump(StackDump::ABRT);
+}
+
+static void winSeg(int)
+{
+    StackDump::dump(StackDump::SEG);
+}
+
+static void winIll(int)
+{
+    StackDump::dump(StackDump::ILL);
+}
+
+static void winFPE(int)
+{
+    StackDump::dump(StackDump::FPE);
 }
 
 #endif
@@ -228,6 +243,9 @@ App::App(std::uint32_t styleFlags, float frameTime)
 #ifndef __APPLE__ //mac actually gives a decent stack dump
     //register custom abort which prints the call stack
     signal(SIGABRT, &winAbort);
+    signal(SIGSEGV, &winSeg);
+    signal(SIGILL, &winIll);
+    signal(SIGFPE, &winFPE);
 #endif
 #endif
 
@@ -241,6 +259,9 @@ App::App(std::uint32_t styleFlags, float frameTime)
 #endif
 
     SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5, "1");
+#ifdef _WIN32
+    SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
+#endif
     if (SDL_Init(INIT_FLAGS) < 0)
     {
         const std::string err(SDL_GetError());
@@ -251,7 +272,11 @@ App::App(std::uint32_t styleFlags, float frameTime)
         m_instance = this;
 
         //maps the steam deck rear buttons to the controller paddles
-        SDL_GameControllerAddMapping("03000000de2800000512000011010000,Steam Deck,platform:Linux,crc:17f6,a:b3,b:b4,x:b5,y:b6,back:b11,guide:b13,start:b12,leftstick:b14,rightstick:b15,leftshoulder:b7,rightshoulder:b8,dpup:b16,dpdown:b17,dpleft:b18,dpright:b19,misc1:b2,paddle1:b21,paddle2:b20,paddle3:b23,paddle4:b22,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a9,righttrigger:a8,");
+        auto mapResult = SDL_GameControllerAddMapping("03000000de2800000512000011010000,Steam Deck,platform:Linux,crc:17f6,a:b3,b:b4,x:b5,y:b6,back:b11,guide:b13,start:b12,leftstick:b14,rightstick:b15,leftshoulder:b7,rightshoulder:b8,dpup:b16,dpdown:b17,dpleft:b18,dpright:b19,misc1:b2,paddle1:b21,paddle2:b20,paddle3:b23,paddle4:b22,leftx:a0,lefty:a1,rightx:a2,righty:a3,lefttrigger:a9,righttrigger:a8,");
+        if (mapResult == -1)
+        {
+            LogE << SDL_GetError() << std::endl;
+        }
 
         std::fill(m_controllers.begin(), m_controllers.end(), ControllerInfo());
         //controllers are automatically connected as the connect events are raised

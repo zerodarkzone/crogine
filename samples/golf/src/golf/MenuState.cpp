@@ -106,6 +106,8 @@ namespace
 
     //constexpr glm::vec3 CameraBasePosition(-22.f, 4.9f, 22.2f);
 
+    bool checkCommandLine = true;
+
     ImVec4 C(1.f, 1.f, 1.f, 1.f);
     float strength = 0.f;
 
@@ -155,11 +157,11 @@ MenuState::MenuState(cro::StateStack& stack, cro::State::Context context, Shared
     m_connectedClientCount  (0),
     m_connectedPlayerCount  (0),
     m_textChat              (m_uiScene, sd),
-    m_matchMaking           (context.appInstance.getMessageBus()),
+    m_matchMaking           (context.appInstance.getMessageBus(), checkCommandLine),
     m_cursor                (/*"assets/images/cursor.png", 0, 0*/cro::SystemCursor::Hand),
-    m_uiScene               (context.appInstance.getMessageBus(), 512),
+    m_uiScene               (context.appInstance.getMessageBus(), 1024),
     m_backgroundScene       (context.appInstance.getMessageBus(), 512/*, cro::INFO_FLAG_SYSTEMS_ACTIVE*/),
-    m_avatarScene           (context.appInstance.getMessageBus(), 640/*, cro::INFO_FLAG_SYSTEMS_ACTIVE*/),
+    m_avatarScene           (context.appInstance.getMessageBus(), 1024/*, cro::INFO_FLAG_SYSTEMS_ACTIVE*/),
     m_scaleBuffer           ("PixelScale"),
     m_resolutionBuffer      ("ScaledResolution"),
     m_windBuffer            ("WindValues"),
@@ -169,9 +171,11 @@ MenuState::MenuState(cro::StateStack& stack, cro::State::Context context, Shared
     m_prevMenu              (MenuID::Main),
     m_viewScale             (1.f)
 {
+    checkCommandLine = false;
     sd.baseState = StateID::Menu;
-    sd.clubSet = std::clamp(sd.clubSet, 0, 2);
-    Club::setClubLevel(sd.clubSet);
+    sd.preferredClubSet = std::clamp(sd.preferredClubSet, 0, 2);
+    sd.clubSet = sd.preferredClubSet;
+    Club::setClubLevel(sd.preferredClubSet);
 
     std::fill(m_readyState.begin(), m_readyState.end(), false);
     sd.minimapData = {};
@@ -1000,11 +1004,23 @@ void MenuState::handleMessage(const cro::Message& msg)
         case MatchMaking::Message::LobbyCreated:
             //broadcast the lobby ID to clients. This will also join ourselves.
             m_sharedData.clientConnection.netClient.sendPacket(PacketID::NewLobbyReady, data.hostID, net::NetFlag::Reliable);
+
+            if (m_sharedData.hosting)
+            {
+                //restore the lobby publicity setting
+                m_matchMaking.setFriendsOnly(m_matchMaking.getFriendsOnly());
+                m_matchMaking.setGamePlayerCount(m_sharedData.localConnectionData.playerCount); //assume we're the only client at this point
+
+                //and trigger packets to update lobby info
+                auto data = serialiseString(m_sharedData.mapDirectory);
+                m_sharedData.clientConnection.netClient.sendPacket(PacketID::MapInfo, data.data(), data.size(), net::NetFlag::Reliable, ConstVal::NetChannelStrings);
+            }
             break;
         case MatchMaking::Message::LobbyJoined:
             finaliseGameJoin(data);
             break;
         case MatchMaking::Message::LobbyJoinFailed:
+            m_matchMaking.leaveGame();
             m_matchMaking.refreshLobbyList(Server::GameMode::Golf);
             updateLobbyList();
             m_sharedData.errorMessage = "Join Failed:\n\nEither full\nor\nno longer exists.";
@@ -1257,8 +1273,8 @@ void MenuState::loadAssets()
     m_resources.shaders.loadFromString(ShaderID::Cel, CelVertexShader, CelFragmentShader, "#define VERTEX_COLOURED\n" + wobble);
     m_resources.shaders.loadFromString(ShaderID::CelTextured, CelVertexShader, CelFragmentShader, "#define TEXTURED\n" + wobble);
     m_resources.shaders.loadFromString(ShaderID::Course, CelVertexShader, CelFragmentShader, "#define TEXTURED\n#define RX_SHADOWS\n" + wobble);
-    m_resources.shaders.loadFromString(ShaderID::CelTexturedSkinned, CelVertexShader, CelFragmentShader, "#define SUBRECT\n#define TEXTURED\n#define SKINNED\n#define NOCHEX\n");
-    m_resources.shaders.loadFromString(ShaderID::Hair, CelVertexShader, CelFragmentShader, "#define USER_COLOUR\n#define NOCHEX");
+    m_resources.shaders.loadFromString(ShaderID::CelTexturedSkinned, CelVertexShader, CelFragmentShader, "#define SUBRECT\n#define TEXTURED\n#define SKINNED\n");
+    m_resources.shaders.loadFromString(ShaderID::Hair, CelVertexShader, CelFragmentShader, "#define USER_COLOUR\n");
     m_resources.shaders.loadFromString(ShaderID::Billboard, BillboardVertexShader, BillboardFragmentShader);
     m_resources.shaders.loadFromString(ShaderID::BillboardShadow, BillboardVertexShader, ShadowFragment, "#define SHADOW_MAPPING\n#define ALPHA_CLIP\n");
     m_resources.shaders.loadFromString(ShaderID::Trophy, CelVertexShader, CelFragmentShader, "#define VERTEX_COLOURED\n#define REFLECTIONS\n" + wobble);
@@ -1978,7 +1994,8 @@ void MenuState::handleNetEvent(const net::NetEvent& evt)
         case PacketID::LobbyReady:
         {
             std::uint16_t data = evt.packet.as<std::uint16_t>();
-            m_readyState[((data & 0xff00) >> 8)] = (data & 0x00ff) ? true : false;
+            auto idx = std::clamp(((data & 0xff00) >> 8), 0, static_cast<std::int32_t>(m_readyState.size() - 1));
+            m_readyState[idx] = (data & 0x00ff) ? true : false;
         }
             break;
         case PacketID::MapInfo:
@@ -2259,17 +2276,26 @@ void MenuState::handleNetEvent(const net::NetEvent& evt)
 
             //reply with our level so server knows which limit to set
             {
-                std::uint16_t data = (m_sharedData.clientConnection.connectionID << 8) | std::uint8_t(m_sharedData.clubSet);
+                std::uint16_t data = (m_sharedData.clientConnection.connectionID << 8) | std::uint8_t(m_sharedData.preferredClubSet);
                 m_sharedData.clientConnection.netClient.sendPacket(PacketID::ClubLevel, data, net::NetFlag::Reliable, ConstVal::NetChannelReliable);
+            }
+
+            if (!m_sharedData.clubLimit)
+            {
+                m_sharedData.clubSet = m_sharedData.preferredClubSet;
             }
             break;
         case PacketID::MaxClubs:
         {
             std::uint8_t clubSet = evt.packet.as<std::uint8_t>();
-            if (clubSet < m_sharedData.clubSet)
+            if (clubSet < m_sharedData.preferredClubSet)
             {
                 m_sharedData.clubSet = clubSet;
                 Club::setClubLevel(clubSet);
+            }
+            else
+            {
+                m_sharedData.clubSet = m_sharedData.preferredClubSet;
             }
         }
             break;
@@ -2413,8 +2439,11 @@ void MenuState::finaliseGameJoin(const MatchMaking::Message& data)
     if (!m_sharedData.clientConnection.connected)
     {
         m_sharedData.clientConnection.hostID = 0;
+        m_sharedData.lobbyID = 0;
         m_sharedData.errorMessage = "Could not connect to server";
         requestStackPush(StateID::Error);
+        m_matchMaking.leaveGame();
+        return;
     }
 
     cro::Command cmd;
